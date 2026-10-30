@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Commande groupée Pokémon Japon</title>
+  <style>
+    :root {
+      --bg: #f7f7f5;
+      --card: #ffffff;
+      --ink: #111111;
+      --muted: #6f6f6b;
+      --line: #e7e6e2;
+      --track: #ecebe7;
+      --ok: #1f7a4d;
+      --radius: 18px;
+      --bar: rgba(247,247,245,.92);
+      --scrim: rgba(17,17,17,.35);
+      --field: #ffffff;
+      --btn-ink: #ffffff;
+      --err: #b42318;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #111111; --card: #1b1b1a; --ink: #f2f2ef; --muted: #a3a39d; --line: #2e2e2b;
+        --track: #2a2a28; --ok: #5cc48f; --bar: rgba(17,17,17,.92); --scrim: rgba(0,0,0,.6);
+        --field: #111111; --btn-ink: #111111; --err: #ff8a80;
+      }
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    .wrap { max-width: 560px; margin: 0 auto; padding: 32px 20px 150px; }
+    .eyebrow { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+    h1 { font-size: 28px; line-height: 1.15; margin: 8px 0 8px; font-weight: 650; letter-spacing: -.02em; }
+    .lead { color: var(--muted); margin: 0 0 24px; font-size: 15px; line-height: 1.5; }
+    h2 { font-size: 15px; font-weight: 600; margin: 32px 0 12px; letter-spacing: -.01em; }
+
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px; }
+    .count { font-size: 46px; font-weight: 650; letter-spacing: -.03em; font-variant-numeric: tabular-nums; line-height: 1; }
+    .count small { font-size: 18px; color: var(--muted); font-weight: 500; margin-left: 6px; letter-spacing: 0; }
+    .bar { height: 8px; background: var(--track); border-radius: 99px; overflow: hidden; margin: 18px 0 14px; }
+    .bar > i { display: block; height: 100%; width: 0; background: var(--ink); border-radius: 99px; transition: width .6s cubic-bezier(.2,.7,.2,1); }
+    .status { font-size: 14px; color: var(--muted); margin: 0; line-height: 1.5; }
+    .status.ok { color: var(--ok); font-weight: 500; }
+
+    .steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+    .steps li { display: flex; gap: 14px; align-items: flex-start; font-size: 14px; line-height: 1.5; }
+    .steps b {
+      flex: 0 0 26px; height: 26px; border-radius: 50%; border: 1px solid var(--line);
+      display: grid; place-items: center; font-size: 12px; background: var(--card);
+    }
+
+    .products { display: grid; gap: 10px; }
+    .item {
+      background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px;
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    }
+    .pname { font-size: 15px; font-weight: 550; line-height: 1.3; }
+    .pmeta { font-size: 13px; color: var(--muted); margin-top: 3px; font-variant-numeric: tabular-nums; }
+    .stepper { display: flex; align-items: center; gap: 4px; flex: 0 0 auto; }
+    .stepper button {
+      width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--line); background: var(--card);
+      font-size: 18px; line-height: 1; cursor: pointer; color: var(--ink); display: grid; place-items: center;
+    }
+    .stepper button:disabled { opacity: .3; cursor: default; }
+    .stepper button:not(:disabled):active { transform: scale(.94); }
+    .qty { min-width: 32px; text-align: center; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+    .footer-bar {
+      position: fixed; left: 0; right: 0; bottom: 0; background: var(--bar);
+      backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid var(--line);
+      padding: 14px max(20px, env(safe-area-inset-right)) calc(14px + env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+    }
+    .footer-inner { max-width: 560px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+    .total-label { font-size: 12px; color: var(--muted); }
+    .total-value { font-size: 20px; font-weight: 650; font-variant-numeric: tabular-nums; }
+
+    .btn {
+      appearance: none; border: 0; border-radius: 999px; padding: 14px 22px; background: var(--ink); color: var(--btn-ink);
+      min-height: 44px; font-size: 15px; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; text-align: center;
+    }
+    .btn:disabled { opacity: .3; cursor: default; }
+    .btn.ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+    .btn.block { width: 100%; }
+
+    .overlay {
+      position: fixed; inset: 0; background: var(--scrim); display: none; align-items: flex-end; justify-content: center; z-index: 10;
+    }
+    .overlay.open { display: flex; }
+    .sheet {
+      background: var(--card); width: 100%; max-width: 560px; max-height: 92vh; max-height: 92dvh; overscroll-behavior: contain; overflow: auto;
+      border-radius: 22px 22px 0 0; padding: 24px 20px calc(24px + env(safe-area-inset-bottom));
+    }
+    .sheet h3 { margin: 0 0 4px; font-size: 20px; letter-spacing: -.01em; }
+    .recap { margin: 14px 0 18px; border-top: 1px solid var(--line); }
+    .recap div { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+    .recap div span:last-child { font-variant-numeric: tabular-nums; color: var(--muted); }
+    .recap .sum { font-weight: 650; color: var(--ink); border-bottom: 0; }
+    .recap .sum span:last-child { color: var(--ink); }
+
+    label { display: block; font-size: 13px; color: var(--muted); margin: 14px 0 6px; }
+    input[type=text], input[type=email], textarea {
+      width: 100%; font: inherit; font-size: 16px; color: var(--ink); padding: 13px 14px;
+      border: 1px solid var(--line); border-radius: 12px; background: var(--field); outline: none;
+    }
+    input:focus, textarea:focus { border-color: var(--ink); }
+    button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+    body.locked { overflow: hidden; }
+    .hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+    .linklike { color: var(--ink); text-underline-offset: 3px; }
+    .retry { margin-top: 12px; }
+    @media (prefers-reduced-motion: reduce) { .bar > i { transition: none; } }
+    textarea { resize: vertical; min-height: 64px; }
+    .check { display: flex; gap: 12px; min-height: 44px; align-items: flex-start; font-size: 14px; line-height: 1.45; margin-top: 18px; color: var(--ink); }
+    .check input { margin-top: 3px; width: 22px; height: 22px; flex: 0 0 auto; }
+    .error { color: var(--err); font-size: 14px; margin: 14px 0 0; min-height: 0; }
+    .sheet .actions { margin-top: 18px; display: grid; gap: 10px; }
+
+    .done { text-align: center; padding: 12px 0 4px; }
+    .done .tick {
+      width: 56px; height: 56px; border-radius: 50%; background: var(--ink); margin: 0 auto 16px;
+      display: grid; place-items: center; font-size: 26px;
+    }
+    .done .tick { color: var(--btn-ink); }
+    .ref { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 18px; letter-spacing: .04em; margin: 10px 0 4px; }
+    .hidden { display: none !important; }
+    .footnote { font-size: 13px; color: var(--muted); line-height: 1.5; margin-top: 28px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="eyebrow">Commande groupée · Japon</div>
+    <h1>Boîtes display Pokémon japonaises</h1>
+    <p class="lead">Choisissez vos boîtes. Nous lançons la commande dès que 20 boîtes sont atteintes.</p>
+
+    <section class="card" aria-labelledby="trackerLabel">
+      <span id="trackerLabel" class="hidden">Progression de la commande groupée</span>
+      <div class="count"><span id="count">0</span><small id="target">/ 20 boîtes</small></div>
+      <div class="bar" id="barWrap" role="progressbar" aria-labelledby="trackerLabel" aria-valuemin="0" aria-valuemax="20" aria-valuenow="0"><i id="bar"></i></div>
+      <p class="status" id="status" aria-live="polite">Chargement…</p>
+      <button type="button" class="btn ghost retry hidden" id="retry">Réessayer</button>
+      <p class="status hidden" id="breakdown"></p>
+    </section>
+
+    <h2>Comment ça marche</h2>
+    <ol class="steps">
+      <li><b>1</b><span>Choisissez vos boîtes et vérifiez le total.</span></li>
+      <li><b>2</b><span>Renseignez votre nom et un moyen de contact.</span></li>
+      <li><b>3</b><span>À 20 boîtes, nous confirmons la commande sur WhatsApp. Le paiement se fait ensuite par virement.</span></li>
+    </ol>
+
+    <h2>Produits</h2>
+    <div class="products" id="products"></div>
+    <p class="status hidden" id="empty">Aucun produit disponible pour le moment. Revenez bientôt.</p>
+
+    <p class="footnote">Les prix sont indicatifs en CHF et peuvent varier entre votre commande et son passage chez le fournisseur. Le prix final vous est confirmé avant paiement.</p>
+    <p class="footnote" id="footnote"></p>
+  </div>
+
+  <div class="footer-bar">
+    <div class="footer-inner">
+      <div>
+        <div class="total-label">Total</div>
+        <div class="total-value" id="total">CHF 0</div>
+      </div>
+      <button class="btn" id="continue" disabled>Continuer</button>
+    </div>
+  </div>
+
+  <!-- Order sheet -->
+  <div class="overlay" id="overlay">
+    <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle" tabindex="-1">
+      <div id="formView">
+        <h3 id="sheetTitle">Votre commande</h3>
+        <div class="recap" id="recap"></div>
+
+        <label for="name">Nom</label>
+        <input type="text" id="name" autocomplete="name" maxlength="80" placeholder="Prénom Nom">
+
+        <label for="contact">E-mail ou numéro WhatsApp</label>
+        <input type="text" id="contact" autocomplete="email" inputmode="email" maxlength="120" placeholder="vous@exemple.ch ou +41 …">
+
+        <label for="note">Remarque (facultatif)</label>
+        <textarea id="note" maxlength="300" placeholder="Une précision pour nous ?"></textarea>
+
+        <div class="hp" aria-hidden="true"><label for="website">Ne pas remplir</label><input type="text" id="website" name="website" tabindex="-1" autocomplete="off"></div>
+
+        <label class="check">
+          <input type="checkbox" id="accept">
+          <span>Je comprends que la commande est confirmée au seuil de 20 boîtes et que le paiement se fait par virement bancaire.</span>
+        </label>
+
+        <p class="footnote" style="margin-top:14px">Vos nom et contact servent uniquement à traiter cette commande et à vous écrire sur WhatsApp. Ils ne sont visibles que de l'organisateur et ne sont pas partagés avec les autres acheteurs.</p>
+
+        <p class="error" id="error" role="alert"></p>
+
+        <div class="actions">
+          <button class="btn block" id="submit">Confirmer ma commande</button>
+          <button class="btn ghost block" id="back">Retour</button>
+        </div>
+      </div>
+
+      <div id="doneView" class="done hidden">
+        <div class="tick" aria-hidden="true">✓</div>
+        <h3 id="doneTitle" tabindex="-1">Commande reçue</h3>
+        <p class="status">Gardez cette référence, elle identifie votre commande.</p>
+        <div class="ref" id="ref"></div>
+        <p class="status" id="doneTotal"></p>
+        <p class="status" id="doneNote" style="margin-top:14px"></p>
+        <p class="status" id="doneNext" style="margin-top:10px">Prochaine étape : dès que 20 boîtes sont atteintes, nous confirmons les commandes finales sur WhatsApp, puis vous payez par virement bancaire.</p>
+        <div class="actions" style="margin-top:22px">
+          <a class="btn block hidden" id="doneWa" target="_blank" rel="noopener noreferrer">Ouvrir le groupe WhatsApp</a>
+          <button class="btn ghost block" id="again">Passer une autre commande</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    var state = { data: null, qty: {}, t0: Date.now(), lastFocus: null, busy: false };
+    var $ = function (id) { return document.getElementById(id); };
+
+    function money(n) { return 'CHF ' + Number(n || 0).toLocaleString('fr-CH'); }
+    function plural(n) { return n === 1 ? 'boîte' : 'boîtes'; }
+
+    function loadData() {
+      google.script.run
+        .withSuccessHandler(onData)
+        .withFailureHandler(function () {
+          if (state.data) return;
+          $('status').textContent = 'Impossible de charger la commande pour le moment.';
+          $('retry').classList.remove('hidden');
+        })
+        .getAppData();
+    }
+
+    function onData(data) {
+      state.data = data;
+      renderTracker();
+      renderProducts();
+      renderFooter();
+      $('retry').classList.add('hidden');
+      $('empty').classList.toggle('hidden', data.products.length > 0);
+      var fn = $('footnote');
+      fn.textContent = '';
+      if (data.whatsappUrl) {
+        var a = document.createElement('a');
+        a.className = 'linklike';
+        a.href = data.whatsappUrl;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        a.textContent = 'Une question ? Écrivez-nous sur WhatsApp.';
+        fn.appendChild(a);
+      }
+    }
+
+    function renderTracker() {
+      var d = state.data;
+      var pct = Math.min(100, (d.boxes / d.target) * 100);
+      $('count').textContent = d.boxes;
+      $('target').textContent = '/ ' + d.target + ' boîtes';
+      $('bar').style.width = pct + '%';
+      $('barWrap').setAttribute('aria-valuenow', Math.min(d.boxes, d.target));
+      $('barWrap').setAttribute('aria-valuemax', d.target);
+      var status = $('status');
+      if (d.reached) {
+        status.textContent = 'Objectif atteint. Nous confirmons les commandes finales sur WhatsApp.';
+        status.className = 'status ok';
+      } else {
+        status.textContent = 'Plus que ' + d.remaining + ' ' + plural(d.remaining) + ' pour déclencher la commande.';
+        status.className = 'status';
+      }
+    }
+
+    function renderProducts() {
+      var d = state.data;
+      var box = $('products');
+      box.innerHTML = '';
+      d.products.forEach(function (p) {
+        var row = document.createElement('div');
+        row.className = 'item';
+
+        var meta = document.createElement('div');
+        var name = document.createElement('div');
+        name.className = 'pname';
+        name.textContent = p.name;
+        var price = document.createElement('div');
+        price.className = 'pmeta';
+        price.textContent = money(p.price) + ' / boîte' + (d.showBreakdown ? ' · ' + p.ordered + ' ' + (p.ordered === 1 ? 'commandée' : 'commandées') : '');
+        meta.appendChild(name);
+        meta.appendChild(price);
+
+        var step = document.createElement('div');
+        step.className = 'stepper';
+        var minus = document.createElement('button');
+        minus.type = 'button';
+        minus.setAttribute('aria-label', 'Retirer une boîte : ' + p.name);
+        minus.textContent = '-';
+        var qty = document.createElement('span');
+        qty.className = 'qty';
+        qty.setAttribute('aria-live', 'polite');
+        var plus = document.createElement('button');
+        plus.type = 'button';
+        plus.setAttribute('aria-label', 'Ajouter une boîte : ' + p.name);
+        plus.textContent = '+';
+
+        function paint() {
+          var q = state.qty[p.id] || 0;
+          qty.textContent = q;
+          minus.disabled = q === 0;
+          plus.disabled = q >= d.maxPerLine;
+          renderFooter();
+        }
+        minus.onclick = function () { state.qty[p.id] = Math.max(0, (state.qty[p.id] || 0) - 1); paint(); };
+        plus.onclick = function () { state.qty[p.id] = Math.min(d.maxPerLine, (state.qty[p.id] || 0) + 1); paint(); };
+
+        step.appendChild(minus);
+        step.appendChild(qty);
+        step.appendChild(plus);
+        row.appendChild(meta);
+        row.appendChild(step);
+        box.appendChild(row);
+        paint();
+      });
+    }
+
+    function selectedLines() {
+      return state.data.products
+        .map(function (p) { return { id: p.id, name: p.name, price: p.price, qty: state.qty[p.id] || 0 }; })
+        .filter(function (l) { return l.qty > 0; });
+    }
+
+    function orderTotal() {
+      return selectedLines().reduce(function (sum, l) { return sum + l.qty * l.price; }, 0);
+    }
+
+    function renderFooter() {
+      var total = orderTotal();
+      $('total').textContent = money(total);
+      $('continue').disabled = total === 0;
+    }
+
+    function openSheet() {
+      var lines = selectedLines();
+      var recap = $('recap');
+      recap.innerHTML = '';
+      lines.forEach(function (l) {
+        var r = document.createElement('div');
+        var a = document.createElement('span');
+        a.textContent = l.qty + ' × ' + l.name;
+        var b = document.createElement('span');
+        b.textContent = money(l.qty * l.price);
+        r.appendChild(a); r.appendChild(b); recap.appendChild(r);
+      });
+      var sum = document.createElement('div');
+      sum.className = 'sum';
+      var sa = document.createElement('span'); sa.textContent = 'Total';
+      var sb = document.createElement('span'); sb.textContent = money(orderTotal());
+      sum.appendChild(sa); sum.appendChild(sb); recap.appendChild(sum);
+
+      $('error').textContent = '';
+      $('formView').classList.remove('hidden');
+      $('doneView').classList.add('hidden');
+      state.lastFocus = document.activeElement;
+      $('overlay').classList.add('open');
+      document.body.classList.add('locked');
+      $('name').focus();
+    }
+
+    function closeSheet() {
+      $('overlay').classList.remove('open');
+      document.body.classList.remove('locked');
+      if (state.lastFocus && state.lastFocus.focus) state.lastFocus.focus();
+    }
+
+    function focusables() {
+      var box = $('doneView').classList.contains('hidden') ? $('formView') : $('doneView');
+      return Array.prototype.filter.call(
+        box.querySelectorAll('button, a[href], input:not([tabindex="-1"]), textarea'),
+        function (el) { return !el.disabled && !el.classList.contains('hidden') && el.offsetParent !== null; });
+    }
+
+    document.addEventListener('keydown', function (e) {
+      if (!$('overlay').classList.contains('open')) return;
+      if (e.key === 'Escape' && !state.busy) { closeSheet(); return; }
+      if (e.key !== 'Tab') return;
+      var f = focusables();
+      if (!f.length) return;
+      var first = f[0], last = f[f.length - 1];
+      if (e.shiftKey && (document.activeElement === first || document.activeElement === $('sheet'))) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    });
+
+    function submit() {
+      if (state.busy) return;
+      var err = $('error');
+      err.textContent = '';
+      var payload = {
+        name: $('name').value,
+        contact: $('contact').value,
+        note: $('note').value,
+        acceptedPayment: $('accept').checked,
+        website: $('website').value,
+        elapsed: Math.round((Date.now() - state.t0) / 1000),
+        items: selectedLines().map(function (l) { return { id: l.id, qty: l.qty }; })
+      };
+      state.busy = true;
+      $('submit').disabled = true;
+      $('submit').textContent = 'Envoi…';
+      function idle() {
+        state.busy = false;
+        $('submit').disabled = false;
+        $('submit').textContent = 'Confirmer ma commande';
+      }
+      google.script.run
+        .withSuccessHandler(function (res) {
+          if (res && res.ok) { onOrdered(res); return; }
+          idle();
+          err.textContent = (res && res.error) || 'Une erreur est survenue. Réessayez.';
+        })
+        .withFailureHandler(function () {
+          idle();
+          err.textContent = 'Connexion impossible. Vérifiez votre réseau puis réessayez. Si cela persiste, écrivez-nous avant de recommander.';
+        })
+        .submitOrder(payload);
+    }
+
+    function onOrdered(res) {
+      state.busy = false;
+      $('submit').disabled = false;
+      $('submit').textContent = 'Confirmer ma commande';
+      $('ref').textContent = res.ref;
+      $('doneTotal').textContent = 'Total : ' + money(res.total);
+      $('doneNote').textContent = res.paymentNote;
+      var wa = $('doneWa');
+      if (res.whatsappUrl) { wa.href = res.whatsappUrl; wa.classList.remove('hidden'); }
+      else { wa.classList.add('hidden'); }
+      $('formView').classList.add('hidden');
+      $('doneView').classList.remove('hidden');
+      state.qty = {};
+      $('accept').checked = false;
+      state.t0 = Date.now();
+      $('doneTitle').focus();
+      loadData();
+    }
+
+    $('continue').onclick = openSheet;
+    $('back').onclick = closeSheet;
+    $('submit').onclick = submit;
+    $('again').onclick = closeSheet;
+    $('overlay').addEventListener('click', function (e) { if (e.target === this && !state.busy) closeSheet(); });
+    $('retry').onclick = function () { $('retry').classList.add('hidden'); $('status').textContent = 'Chargement…'; loadData(); };
+
+    loadData();
+  </script>
+</body>
+</html>
